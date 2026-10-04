@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ EV Energy Manager</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        header h1 { color: var(--primary); margin: 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card h3 { margin-top: 0; color: #64748b; font-size: 0.9em; text-transform: uppercase; }
+        .card .value { font-size: 1.8em; font-weight: bold; color: var(--primary); }
+        .section { background: var(--card); padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .section h2 { margin-top: 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9em; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+        button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; font-weight: 600; }
+        .status-ready { color: #10b981; font-weight: bold; }
+        .status-charging { color: #2563eb; font-weight: bold; }
+        .status-done { color: #f59e0b; font-weight: bold; }
+        #simStatus { margin-top: 15px; padding: 10px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>⚡ EV Energy Manager</h1>
+        <p>Gestión de infraestructura de recarga de vehículos eléctricos</p>
+    </header>
+
+    <!-- Dashboard -->
+    <div class="grid">
+        <div class="card"><h3>Potencia Disponible</h3><div class="value" id="dashPower">50 kW</div></div>
+        <div class="card"><h3>Demanda Actual</h3><div class="value" id="dashDemand">0 kW</div></div>
+        <div class="card"><h3>Energía Total</h3><div class="value" id="dashEnergy">0 kWh</div></div>
+        <div class="card"><h3>Costo Total</h3><div class="value" id="dashCost">$0.00</div></div>
+    </div>
+
+    <!-- Configuración del Sitio -->
+    <div class="section">
+        <h2>🏢 Configuración de Infraestructura</h2>
+        <div class="grid">
+            <div class="form-group">
+                <label>Potencia disponible (kW)</label>
+                <input type="number" id="sitePower" value="50">
+            </div>
+            <div class="form-group">
+                <label>Precio energía ($/kWh)</label>
+                <input type="number" id="sitePrice" value="0.25" step="0.01">
+            </div>
+        </div>
+        <button class="btn-primary" onclick="saveSiteConfig()">💾 Guardar Configuración</button>
+    </div>
+
+    <!-- Gestión de Vehículos -->
+    <div class="section">
+        <h2>🚗 Agregar Vehículo</h2>
+        <div class="grid">
+            <div class="form-group">
+                <label>Nombre o ID</label>
+                <input type="text" id="vName" value="Nissan Leaf">
+            </div>
+            <div class="form-group">
+                <label>Capacidad Batería (kWh)</label>
+                <input type="number" id="vBattery" value="40">
+            </div>
+            <div class="form-group">
+                <label>Potencia Cargador (kW)</label>
+                <input type="number" id="vCharger" value="7.4">
+            </div>
+            <div class="form-group">
+                <label>SOC Inicial (%)</label>
+                <input type="number" id="vSocInit" value="20" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label>SOC Objetivo (%)</label>
+                <input type="number" id="vSocTarget" value="80" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label>Eficiencia (%)</label>
+                <input type="number" id="vEfficiency" value="90">
+            </div>
+        </div>
+        <button class="btn-success" onclick="addVehicle()">➕ Agregar Vehículo</button>
+    </div>
+
+    <!-- Estación de Carga y Simulación -->
+    <div class="section">
+        <h2>⚡ Simulación de Carga</h2>
+        <div class="form-group">
+            <label>Selecciona el vehículo a simular</label>
+            <select id="vehicleSelect"><option value="">-- Selecciona un vehículo --</option></select>
+        </div>
+        <div class="form-group">
+            <label>Modo de gestión energética</label>
+            <select id="simMode">
+                <option value="Máxima velocidad">🚀 Máxima velocidad</option>
+                <option value="Equilibrado">⚖️ Equilibrado</option>
+                <option value="Ahorro">🌱 Ahorro</option>
+            </select>
+        </div>
+        
+        <div class="grid" style="margin-top: 20px;">
+            <div class="card"><h3>Carga Actual</h3><div class="value" id="simSoc">0%</div></div>
+            <div class="card"><h3>Energía Faltante</h3><div class="value" id="simEnergyNeeded">0 kWh</div></div>
+            <div class="card"><h3>Tiempo Restante</h3><div class="value" id="simTime">0 h 0 min</div></div>
+            <div class="card"><h3>Costo Estimado</h3><div class="value" id="simCost">$0.00</div></div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-primary" id="btnStart" onclick="startSimulation()">▶ Iniciar Carga</button>
+            <button class="btn-secondary" id="btnPause" onclick="pauseSimulation()" disabled>⏸ Pausar</button>
+            <button class="btn-danger" id="btnReset" onclick="resetSimulation()">🔄 Reiniciar</button>
+        </div>
+        <div id="simStatus" class="status-ready">Sistema listo. Selecciona un vehículo e inicia la simulación.</div>
+    </div>
+
+    <!-- Tabla de Resultados -->
+    <div class="section">
+        <h2>📊 Tabla de Resultados</h2>
+        <table id="resultsTable">
+            <thead>
+                <tr><th>Vehículo</th><th>Ini</th><th>Obj</th><th>Energía</th><th>Tiempo</th><th>Costo</th><th>Estado</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 1. CONFIGURACIÓN: TU URL DE APPS SCRIPT YA ESTÁ AQUÍ
+    // ==========================================
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5hWsZl4o-HzQYGo9zt6D8LpuQlzw93p8tI4x9HQPejhFKxAfp-0x1_EtqD5HvhbCW/exec"; 
+
+    // ==========================================
+    // 2. ESTADO DE LA APLICACIÓN
+    // ==========================================
+    let siteConfig = { power: 50, price: 0.25 };
+    let vehicles = [];
+    let simInterval = null;
+    let simData = {
+        active: false,
+        vehicle: null,
+        currentSoc: 0,
+        energyConsumed: 0,
+        timeElapsed: 0, // en horas
+        cost: 0,
+        mode: ""
+    };
+
+    // ==========================================
+    // 3. FUNCIONES DE LA APP
+    // ==========================================
+    function saveSiteConfig() {
+        siteConfig.power = parseFloat(document.getElementById('sitePower').value);
+        siteConfig.price = parseFloat(document.getElementById('sitePrice').value);
+        document.getElementById('dashPower').innerText = siteConfig.power + " kW";
+        alert("✅ Configuración del sitio guardada.");
+    }
+
+    function addVehicle() {
+        const v = {
+            id: Date.now(),
+            name: document.getElementById('vName').value || "Vehículo Sin Nombre",
+            battery: parseFloat(document.getElementById('vBattery').value),
+            charger: parseFloat(document.getElementById('vCharger').value),
+            socInit: parseFloat(document.getElementById('vSocInit').value),
+            socTarget: parseFloat(document.getElementById('vSocTarget').value),
+            efficiency: parseFloat(document.getElementById('vEfficiency').value) / 100
+        };
+        vehicles.push(v);
+        updateVehicleSelect();
+        alert(`✅ Vehículo "${v.name}" agregado correctamente.`);
+    }
+
+    function updateVehicleSelect() {
+        const select = document.getElementById('vehicleSelect');
+        select.innerHTML = '<option value="">-- Selecciona un vehículo --</option>';
+        vehicles.forEach((v, index) => {
+            select.innerHTML += `<option value="${index}">${v.name} (${v.battery} kWh)</option>`;
+        });
+        select.onchange = () => loadVehicleToSim(select.value);
+    }
+
+    function loadVehicleToSim(index) {
+        if (index === "") return;
+        const v = vehicles[index];
+        simData.vehicle = v;
+        simData.currentSoc = v.socInit;
+        simData.energyConsumed = 0;
+        simData.timeElapsed = 0;
+        simData.cost = 0;
+        updateSimDisplay();
+        document.getElementById('simStatus').innerText = `Vehículo "${v.name}" cargado. Listo para iniciar.`;
+        document.getElementById('simStatus').className = "status-ready";
+    }
+
+    function updateSimDisplay() {
+        if (!simData.vehicle) return;
+        const v = simData.vehicle;
+        const energyNeeded = ((v.socTarget - simData.currentSoc) / 100) * v.battery;
+        const effectivePower = v.charger * v.efficiency;
+        const timeNeededHours = energyNeeded / effectivePower;
+        const hours = Math.floor(timeNeededHours);
+        const mins = Math.round((timeNeededHours - hours) * 60);
+        const totalCost = ((v.socTarget - v.socInit) / 100) * v.battery * siteConfig.price;
+
+        document.getElementById('simSoc').innerText = simData.currentSoc.toFixed(1) + "%";
+        document.getElementById('simEnergyNeeded').innerText = energyNeeded.toFixed(2) + " kWh";
+        document.getElementById('simTime').innerText = `${hours} h ${mins} min`;
+        document.getElementById('simCost').innerText = "$" + totalCost.toFixed(2);
+    }
+
+    function startSimulation() {
+        if (!simData.vehicle) { alert("⚠️ Selecciona un vehículo primero."); return; }
+        if (simData.active) return;
+
+        simData.active = true;
+        simData.mode = document.getElementById('simMode').value;
+        document.getElementById('btnStart').disabled = true;
+        document.getElementById('btnPause').disabled = false;
+        document.getElementById('simStatus').innerText = `⚡ Cargando en modo: ${simData.mode}...`;
+        document.getElementById('simStatus').className = "status-charging";
+
+        // Velocidad de simulación (30x significa que 1 segundo real = 30 segundos de simulación)
+        const speedMultiplier = 30; 
+        const tickHours = (1 / 3600) * speedMultiplier; 
+
+        simInterval = setInterval(() => {
+            const v = simData.vehicle;
+            const effectivePower = v.charger * v.efficiency;
+            const energyAdded = effectivePower * tickHours;
+            const socAdded = (energyAdded / v.battery) * 100;
+
+            simData.currentSoc += socAdded;
+            simData.energyConsumed += energyAdded;
+            simData.timeElapsed += tickHours;
+            simData.cost = simData.energyConsumed * siteConfig.price;
+
+            // Actualizar dashboard
+            document.getElementById('dashDemand').innerText = effectivePower.toFixed(1) + " kW";
+            document.getElementById('dashEnergy').innerText = simData.energyConsumed.toFixed(2) + " kWh";
+            document.getElementById('dashCost').innerText = "$" + simData.cost.toFixed(2);
+            
+            updateSimDisplay();
+
+            // Condición de finalización
+            if (simData.currentSoc >= v.socTarget) {
+                simData.currentSoc = v.socTarget; // Ajuste final exacto
+                updateSimDisplay();
+                finishSimulation(true); // true = terminó naturalmente
+            }
+        }, 1000); // Se actualiza cada 1 segundo real
+    }
+
+    function pauseSimulation() {
+        clearInterval(simInterval);
+        simData.active = false;
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('btnPause').disabled = true;
+        document.getElementById('simStatus').innerText = "⏸ Simulación pausada.";
+    }
+
+    function resetSimulation() {
+        // Si estaba corriendo o pausada, y hay datos, enviamos el informe antes de borrar
+        if (simData.vehicle && (simData.energyConsumed > 0 || simData.currentSoc > simData.vehicle.socInit)) {
+            finishSimulation(false); // false = detenido manualmente
+        }
+        
+        clearInterval(simInterval);
+        simData.active = false;
+        simData.energyConsumed = 0;
+        simData.timeElapsed = 0;
+        simData.cost = 0;
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('btnPause').disabled = true;
+        document.getElementById('dashDemand').innerText = "0 kW";
+        document.getElementById('dashEnergy').innerText = "0 kWh";
+        document.getElementById('dashCost').innerText = "$0.00";
+        
+        const select = document.getElementById('vehicleSelect');
+        if (select.value !== "") loadVehicleToSim(select.value);
+        else document.getElementById('simStatus').innerText = "Sistema listo. Selecciona un vehículo.";
+    }
+
+    // ==========================================
+    // 4. LÓGICA DE ENVÍO DE INFORME (GOOGLE APPS SCRIPT)
+    // ==========================================
+    function finishSimulation(completedNaturally) {
+        pauseSimulation(); // Detener el intervalo
+        
+        const v = simData.vehicle;
+        const estadoFinal = completedNaturally ? "Completado" : "Detenido Manualmente";
+        
+        document.getElementById('simStatus').innerText = `✅ Simulación ${estadoFinal}. Generando informe...`;
+        document.getElementById('simStatus').className = "status-done";
+
+        // Agregar a la tabla de resultados
+        const tbody = document.querySelector('#resultsTable tbody');
+        const row = `<tr>
+            <td>${v.name}</td>
+            <td>${v.socInit}%</td>
+            <td>${simData.currentSoc.toFixed(1)}%</td>
+            <td>${simData.energyConsumed.toFixed(2)} kWh</td>
+            <td>${simData.timeElapsed.toFixed(2)} h</td>
+            <td>$${simData.cost.toFixed(2)}</td>
+            <td>${estadoFinal}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+
+        // Preparar datos para el informe
+        const datosParaEnviar = {
+            vehicleName: v.name,
+            managementMode: simData.mode,
+            initialSoc: v.socInit,
+            targetSoc: v.socTarget,
+            energyConsumed: simData.energyConsumed.toFixed(2),
+            timeTaken: simData.timeElapsed.toFixed(2),
+            cost: simData.cost.toFixed(2)
+        };
+
+        // Enviar a Google Sheets y Correo
+        enviarInformeASheets(datosParaEnviar);
+    }
+
+    function enviarInformeASheets(datos) {
+        console.log("📤 Enviando informe a Google Sheets y correo...", datos);
+        
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(datos)
+        })
+        .then(() => {
+            console.log("✅ Informe enviado exitosamente.");
+            alert("✅ ¡Informe generado!\n\nLos datos se guardaron en la Hoja de Cálculo y se envió un PDF a jmajma901@gmail.com.");
+        })
+        .catch(error => {
+            console.error("❌ Error al enviar el informe:", error);
+            alert("⚠️ La simulación terminó, pero hubo un error de red al enviar el informe.");
+        });
+    }
+
+    // Inicializar con un vehículo de ejemplo
+    window.onload = () => {
+        addVehicle();
+    };
+</script>
+
+</body>
+</html>
